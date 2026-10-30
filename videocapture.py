@@ -6,6 +6,7 @@ import pyautogui
 import time
 import os
 import numpy as np
+import math
 
 pyautogui.FAILSAFE = False
 pyautogui.PAUSE = 0
@@ -121,7 +122,7 @@ def main():
                 break
 
             frame = cv2.flip(frame, 1)
-            #h, w, _ = frame.shape
+            h, w, _ = frame.shape
     
             # Convert BGR frame to RGB usable by mediapipe
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -137,7 +138,10 @@ def main():
     
                 if latest_result.hand_landmarks and homography_matrix is not None:
                     index_tip = latest_result.hand_landmarks[0][8]
+                    thumb_tip = latest_result.hand_landmarks[0][4]
+                    middle_tip = latest_result.hand_landmarks[0][12]
 
+                    # Cursor movement
                     target_x, target_y = get_cursor_position(index_tip)
 
                     smooth_x += (target_x - smooth_x) * SMOOTHING
@@ -145,28 +149,34 @@ def main():
                     
                     pyautogui.moveTo(int(smooth_x), int(smooth_y), duration=0)
 
-                    # Landmark visualization
-                    '''
-                    for hand_landmarks in latest_result.hand_landmarks:
-                        # Draw the landmark points
-                        for landmark in hand_landmarks:
-                            # Convert normalized coordinates (0.0 to 1.0) to pixel coordinates
-                            pixel_x = int(landmark.x * w)
-                            pixel_y = int(landmark.y * h)
-                            cv2.circle(frame, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
-                            
-                        # Draw landmark lines
-                        for connection in HAND_CONNECTIONS:
-                            start_idx = connection[0]
-                            end_idx = connection[1]
-                            
-                            start_point = hand_landmarks[start_idx]
-                            end_point = hand_landmarks[end_idx]
-                            
-                            pt1 = (int(start_point.x * w), int(start_point.y * h))
-                            pt2 = (int(end_point.x * w), int(end_point.y * h))
-                            cv2.line(frame, pt1, pt2, (255, 0, 0), 2)
-                    '''
+                    # Left-click
+                    distance = math.hypot(thumb_tip.x - middle_tip.x, thumb_tip.y - middle_tip.y)
+                    touch_threshold = 0.05
+                    if distance < touch_threshold:
+                        pyautogui.click()
+
+                # Landmark visualization
+                
+                for hand_landmarks in latest_result.hand_landmarks:
+                    # Draw the landmark points
+                    for landmark in hand_landmarks:
+                        # Convert normalized coordinates (0.0 to 1.0) to pixel coordinates
+                        pixel_x = int(landmark.x * w)
+                        pixel_y = int(landmark.y * h)
+                        cv2.circle(frame, (pixel_x, pixel_y), 5, (0, 255, 0), -1)
+                        
+                    # Draw landmark lines
+                    for connection in HAND_CONNECTIONS:
+                        start_idx = connection[0]
+                        end_idx = connection[1]
+                        
+                        start_point = hand_landmarks[start_idx]
+                        end_point = hand_landmarks[end_idx]
+                        
+                        pt1 = (int(start_point.x * w), int(start_point.y * h))
+                        pt2 = (int(end_point.x * w), int(end_point.y * h))
+                        cv2.line(frame, pt1, pt2, (255, 0, 0), 2)
+                
                     
             cv2.imshow("Camera", frame)
             key = cv2.waitKey(1) & 0xFF
